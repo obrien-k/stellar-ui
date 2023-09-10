@@ -1,21 +1,21 @@
 export interface GraphQLContext {
   token: string;
 
-  /* Site context */
+  /* Guest context */
   /*
-  Site {
+  Guest {
   
   }
-/*
-  /* User context */
+  *
+  /* Member context */
   /*
-  User {
+  Member {
 
   }
   */
-  /* Community context */
+  /* Staff context */
   /*
-  Community { 
+  Staff { 
   
   }
   */
