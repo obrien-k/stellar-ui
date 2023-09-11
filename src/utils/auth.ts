@@ -10,45 +10,18 @@ const isAuthenticated = rule({ cache: 'contextual' })(async (
   return ctx.token !== null;
 });
 
-const isAdmin = rule({ cache: 'contextual' })(async (
+const asActor = rule({ cache: 'contextual' })(async (
   parent,
   args,
   ctx: GraphQLContext,
   info
 ) => {
-  return ctx.token === 'admin';
-});
-
-const isStaff = rule({ cache: 'contextual' })(async (
-  parent,
-  args,
-  ctx: GraphQLContext,
-  info
-) => {
-  return ctx.token === 'staff';
-});
-
-const isMember = rule({ cache: 'contextual' })(async (
-  parent,
-  args,
-  ctx: GraphQLContext,
-  info
-) => {
-  return ctx.token === 'member';
-});
-
-const isGuest = rule({ cache: 'contextual' })(async (
-  parent,
-  args,
-  ctx: GraphQLContext,
-  info
-) => {
-  return ctx.token === 'guest';
+  return ctx.actor === 'admin'; // or staff, member, guest
 });
 
 // Permissions
 export const permissions = shield({
   Query: {
-    getUsers: and(isAuthenticated, or(isAdmin, isStaff, isMember, isGuest))
+    getUsers: and(isAuthenticated, or(asActor))
   }
 });
