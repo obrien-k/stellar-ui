@@ -8940,6 +8940,7 @@ export interface paths {
             groupId: number;
             threadId: number;
             title: string;
+            image?: string | '';
             /** Format: date-time */
             started: string;
             /** Format: date-time */
@@ -11491,6 +11492,11 @@ export interface components {
       isDefault: boolean;
       createdAt: string;
     };
+    StylesheetStat: {
+      id: number;
+      name: string;
+      userCount: number;
+    };
     GlobalNotice: {
       id: number;
       message: string;
@@ -11501,11 +11507,6 @@ export interface components {
         id: number;
         username: string;
       };
-    };
-    StylesheetStat: {
-      id: number;
-      name: string;
-      userCount: number;
     };
     Forum: {
       id: number;
@@ -11689,7 +11690,7 @@ export interface components {
       };
       type: string;
       downloadUrl: string;
-      sizeInBytes?: number | null;
+      sizeInBytes?: string | null;
       collaborators: {
         id: number;
         name: string;
@@ -11710,7 +11711,7 @@ export interface components {
       };
       type: string;
       downloadUrl: string;
-      sizeInBytes?: number | null;
+      sizeInBytes?: string | null;
       collaborators: {
         id: number;
         name: string;
