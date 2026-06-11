@@ -10,6 +10,8 @@ import { CleanWebpackPlugin as CleanPlugin } from 'clean-webpack-plugin';
 import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 
+import pkg from './package.json';
+
 dotenv.config();
 dotenv.config({ path: '.env.local', override: true });
 
@@ -20,7 +22,7 @@ const plugins = [
   new webpack.DefinePlugin({
     __SENTRY_DSN__: JSON.stringify(process.env.SENTRY_DSN || ''),
     // Footer version surface — pinned to the manifest so it can't drift.
-    __APP_VERSION__: JSON.stringify(require('./package.json').version)
+    __APP_VERSION__: JSON.stringify(pkg.version)
   }),
   new CleanPlugin(),
   new StylelintPlugin({
