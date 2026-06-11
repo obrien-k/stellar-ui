@@ -46,6 +46,31 @@ const AUDIO_FILE_TYPES: FileType[] = [
   'm4a'
 ];
 
+// The API now types bitrate/media as enums. This form still collects them as
+// free text, so the submitted values are asserted to the enum unions here.
+// TODO: replace the free-text inputs with enum selects (see ContributeForm).
+type Bitrate =
+  | 'Lossless'
+  | 'Lossless24'
+  | 'Kbps320'
+  | 'Kbps256'
+  | 'KbpsV0'
+  | 'Kbps192'
+  | 'KbpsV2'
+  | 'Kbps128'
+  | 'Other';
+type ReleaseMedia =
+  | 'CD'
+  | 'WEB'
+  | 'Vinyl'
+  | 'SACD'
+  | 'DVD'
+  | 'Cassette'
+  | 'BluRay'
+  | 'DAT'
+  | 'Soundboard'
+  | 'Other';
+
 const inputClass =
   'w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:outline-none focus:border-indigo-500';
 const labelClass = 'block text-sm text-gray-400 mb-1';
@@ -95,8 +120,8 @@ const AddContributionForm = () => {
           : undefined,
         releaseDescription: releaseDescription || undefined,
         ...(isAudio && {
-          bitrate: bitrate || undefined,
-          media: media || undefined,
+          bitrate: (bitrate || undefined) as Bitrate | undefined,
+          media: (media || undefined) as ReleaseMedia | undefined,
           hasLog,
           hasCue,
           isScene

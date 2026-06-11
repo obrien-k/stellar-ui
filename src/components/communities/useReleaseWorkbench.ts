@@ -160,7 +160,8 @@ export const useReleaseWorkbench = ({
         description: editForm.description.trim() || undefined,
         year: editForm.year || undefined,
         image: editForm.image.trim() || undefined,
-        isEdition: editForm.isEdition,
+        // isEdition is no longer a Release field — editions are modelled by the
+        // separate Edition entity. TODO: wire edition editing through Edition.
         editSummary: editForm.editSummary.trim() || undefined
       }).unwrap();
       dispatch(addAlert('Release updated.', 'success'));
