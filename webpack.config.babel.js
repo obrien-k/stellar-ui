@@ -18,7 +18,9 @@ const apiUrl = process.env.STELLAR_API_URL || 'http://localhost:8080';
 
 const plugins = [
   new webpack.DefinePlugin({
-    __SENTRY_DSN__: JSON.stringify(process.env.SENTRY_DSN || '')
+    __SENTRY_DSN__: JSON.stringify(process.env.SENTRY_DSN || ''),
+    // Footer version surface — pinned to the manifest so it can't drift.
+    __APP_VERSION__: JSON.stringify(require('./package.json').version)
   }),
   new CleanPlugin(),
   new StylelintPlugin({
