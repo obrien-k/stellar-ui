@@ -23,6 +23,10 @@ All notable changes to stellar-ui are documented here.
 
 - Dead `isEdition` release-edit control and phantom "Edition" display — whether a release is an edition is now modelled by the separate `Edition` entity [#72]
 
+### Fixed
+
+- Footer version is now derived from the manifest (`__APP_VERSION__` via webpack `DefinePlugin`) instead of a hardcoded `v0.5` literal, so it tracks releases and can't drift
+
 ---
 
 ## [0.5.3] — 2026-06-01
