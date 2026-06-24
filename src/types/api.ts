@@ -12077,6 +12077,76 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/log-check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Score a pasted EAC/XLD rip log (0–100; 100 = verified perfect) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': {
+            log: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Scored log */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string|null} */
+              ripper: 'EAC' | 'XLD' | null;
+              version: string | null;
+              score: number;
+              isPerfect: boolean;
+              deductions: {
+                message: string;
+                points: number;
+              }[];
+            };
+          };
+        };
+        /** @description Invalid request body */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ValidationError'];
+          };
+        };
+        /** @description Not authenticated */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MsgResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
