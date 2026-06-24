@@ -9,6 +9,7 @@ import { addAlert } from '../../store/slices/alertSlice';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { parseSize, SIZE_INPUT_UNITS } from '../../utils';
 import Spinner from '../layout/Spinner';
+import RipLogChecker from '../contribute/RipLogChecker';
 import type { BinarySizeUnit } from '../../utils';
 
 const FILE_TYPES = [
@@ -339,6 +340,8 @@ const AddContributionForm = () => {
                 Scene release
               </label>
             </div>
+
+            {fileType === 'flac' && <RipLogChecker />}
           </div>
         )}
 

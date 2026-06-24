@@ -8,6 +8,7 @@ import {
 } from '../../store/services/communityApi';
 import { selectCurrentUser } from '../../store/slices/authSlice';
 import { addAlert } from '../../store/slices/alertSlice';
+import RipLogChecker from './RipLogChecker';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { parseSize, SIZE_INPUT_UNITS } from '../../utils';
 import Spinner from '../layout/Spinner';
@@ -886,6 +887,8 @@ const ContributeForm = () => {
               </>
             )}
           </div>
+
+          {isMusic && fileType === 'flac' && <RipLogChecker />}
         </fieldset>
 
         <div className="flex gap-3 pt-2">
