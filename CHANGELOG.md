@@ -6,6 +6,8 @@ All notable changes to stellar-ui are documented here.
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-07-22
+
 Completes the move of built-in themes to the API: the UI stops shipping theme CSS, stops recognising theme names, and keeps only the branding art it actually owns.
 
 ### Added
