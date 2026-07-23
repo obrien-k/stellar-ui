@@ -1,0 +1,2604 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Schema ERD as committed documentation. Markdown (Mermaid) output needs no
+// puppeteer/mermaid-cli; GitHub renders the diagram inline. Regenerated on
+// every `prisma generate` (and explicitly via `npm run db:erd`) so docs/erd.md
+// stays in lockstep with the schema. Set DISABLE_ERD=1 to skip (e.g. in CI).
+generator erd {
+  provider     = "prisma-erd-generator"
+  output       = "../docs/erd.md"
+  disabled     = env("DISABLE_ERD")
+  // The full per-column diagram (159 entities) exceeds GitHub's mermaid
+  // render budget ("Unable to render rich display"). Emit a high-level
+  // entity/relationship map instead — columns live in this schema. Emoji
+  // off per repo docs convention.
+  tableOnly    = true
+  ignoreEnums  = true
+  disableEmoji = true
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("STELLAR_PSQL_URI")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum CommunityType {
+  Music
+  Applications
+  EBooks
+  ELearningVideos
+  Audiobooks
+  Comedy
+  Comics
+}
+
+enum FileType {
+  mp3
+  flac
+  wav
+  ogg
+  aac
+  m4a
+  m4b
+  mp4
+  mkv
+  avi
+  mov
+  zip
+  exe
+  dmg
+  apk
+  pdf
+  epub
+  mobi
+  cbz
+  cbr
+  jpg
+  png
+  gif
+  txt
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  rejected
+}
+
+enum RegistrationStatus {
+  open
+  invite
+  closed
+}
+
+enum ReleaseType {
+  Music
+  Applications
+  EBooks
+  ELearningVideos
+  Audiobooks
+  Comedy
+  Comics
+}
+
+enum ReleaseCategory {
+  Album
+  Single
+  EP
+  Anthology
+  Compilation
+  DJMix
+  Live
+  Remix
+  Bootleg
+  Interview
+  Mixtape
+  Demo
+  ConcertRecording
+  Unknown
+}
+
+enum CommentPage {
+  artist
+  collages
+  contributions
+  requests
+  communities
+  release
+}
+
+enum SubscriptionPage {
+  forums
+  artist
+  collages
+  requests
+  communities
+  contributions
+  release
+  news
+  global_notices
+}
+
+enum NotificationType {
+  forum_quote
+  forum_sub
+  request_filled
+  collage_updated
+  comment_sub
+  artist_release
+  site_news
+  global_notice
+  rank_promoted
+  rank_demoted
+}
+
+// Extra, non-numeric criteria a promotion rule may layer on top of the stock
+// byte/ratio/contribution/age thresholds — the prestige-tier gates encoded by
+// the evaluator (rankProgression.ts RankExtraPredicate). Mirrors that TS union
+// exactly so a Prisma row maps onto the evaluator's rule shape unchanged.
+enum RankExtraPredicate {
+  DISTINCT_RELEASES_500
+  QUALITY_CONTRIB_500
+}
+
+enum ThreadType {
+  forum
+  application
+}
+
+enum ApiUserState {
+  inactive
+  active
+}
+
+enum NoteVisibility {
+  public
+  staff
+}
+
+enum ForumRuleTarget {
+  Forum
+  Thread
+  Topic
+}
+
+enum RequestStatus {
+  open
+  filled
+  deleted
+}
+
+enum NotificationMethod {
+  Disabled
+  Popup
+  Traditional
+  Push
+  Combined
+}
+
+enum EconomyTransactionReason {
+  REQUEST_CREATE
+  REQUEST_VOTE
+  REQUEST_FILL
+  REQUEST_UNFILL
+  REQUEST_REFUND
+  DOWNLOAD_DEBIT
+  DOWNLOAD_CREDIT
+  STAFF_REVERSAL
+  CRS_STYLESHEET_ADOPTION
+  // Ratio-exempt grants (PRD-06 #4): a zero-amount marker row so the grant
+  // event still exists in the ledger for the ADR-0016 korin handoff (#261),
+  // even though no balance moved.
+  FREEPASS_GRANT
+  NEUTRALPASS_GRANT
+}
+
+enum DownloadGrantStatus {
+  COMPLETED
+  REVERSED
+}
+
+enum RatioPolicyStatus {
+  OK
+  WATCH
+  LEECH_DISABLED
+}
+
+// Ratio-exempt Contribution flags (PRD-06 #4). Read at consumption time by the
+// accounting path (downloads.ts). Mutually exclusive by construction — a single
+// enum encodes that a Contribution can't be both Freepass and Neutralpass.
+//   FREEPASS    — consumer's `consumed` not accrued; contributor still earns `contributed`.
+//   NEUTRALPASS — neither side accrues; fully ratio-invisible.
+enum RatioExempt {
+  NONE
+  FREEPASS
+  NEUTRALPASS
+}
+
+enum LinkHealthStatus {
+  UNKNOWN
+  PASS
+  WARN
+  FAIL
+}
+
+enum RequestActionType {
+  CREATE
+  ADD_BOUNTY
+  FILL
+  UNFILL
+  DELETE
+  RESTORE
+}
+
+enum StaffInboxStatus {
+  Unanswered
+  Open
+  Resolved
+}
+
+enum ReportStatus {
+  Open
+  Claimed
+  Resolved
+}
+
+enum ReportTargetType {
+  User
+  Release
+  Artist
+  Contribution
+  ForumTopic
+  ForumPost
+  Comment
+  Collage
+  Post
+}
+
+enum ReportResolutionAction {
+  Dismissed
+  ContentRemoved
+  UserWarned
+  UserDisabled
+  MetadataFixed
+  MarkedDuplicate
+  Other
+}
+
+enum ReleaseReportCategory {
+  Dupe
+  Trump
+  BadFileNamesTrump
+  BadFolderNameTrump
+  TagTrump
+  VinylTrump
+  AudienceRecording
+  BadFileNames
+  BadFolderNames
+  BadTagNoTag
+  BonusTracksOnly
+  DisallowedFormat
+  DiscsMissing
+  Discography
+  MqaBanned
+  EditedLog
+  InaccurateBitrate
+  LogRescoreRequest
+  LossyMasterApprovalRequest
+  ContributionContestApprovalRequest
+  LowBitrate
+  MuttRip
+  NoLineageInfo
+  Other
+  RadioTvFmWebRip
+  SkipsEncodeErrors
+  SpecificallyBanned
+  TracksMissing
+  Transcode
+  UnsplitAlbumRip
+  Urgent
+  UserCompilation
+  WrongSpecifiedFormat
+  WrongSpecifiedMedia
+}
+
+// ─── User & Auth ──────────────────────────────────────────────────────────────
+
+model StaffGroup {
+  id        Int        @id @default(autoincrement())
+  sortOrder Int
+  name      String     @unique
+  userRanks UserRank[]
+
+  @@index([sortOrder])
+  @@map("staff_groups")
+}
+
+model UserRank {
+  id                    Int                 @id @default(autoincrement())
+  level                 Int
+  name                  String
+  permissions           Json
+  secondary             Boolean             @default(false)
+  permittedForumIds     Int[]               @default([])
+  color                 String              @default("")
+  badge                 String              @default("")
+  uploadRequired        Int                 @default(0)
+  personalCollageLimit  Int                 @default(0)
+  authorStylesheetLimit Int                 @default(0)
+  /// How many stylesheet assets a member of this rank may upload (#342). NOTE:
+  /// the semantic is the OPPOSITE of authorStylesheetLimit above — here `0`
+  /// means none, `null` means unlimited, and a positive N is the cap. The
+  /// integer says exactly what it counts. A brand-new User uploads nothing; the
+  /// allowance scales up the ladder like personalCollageLimit; staff are null
+  /// (uncapped). Default 0, so a rank created without an explicit value can
+  /// upload nothing rather than everything.
+  assetLimit            Int?                @default(0)
+  displayStaff          Boolean             @default(false)
+  staffGroupId          Int?
+  staffGroup            StaffGroup?         @relation(fields: [staffGroupId], references: [id], onDelete: SetNull)
+  users                 User[]
+  secondaryUsers        UserSecondaryRank[]
+  promotionRulesFrom    RankPromotionRule[] @relation("RankPromotionFrom")
+  promotionRulesTo      RankPromotionRule[] @relation("RankPromotionTo")
+
+  @@unique([level])
+  @@unique([name])
+  @@index([displayStaff])
+  @@index([staffGroupId])
+  @@map("user_ranks")
+}
+
+// Declarative, data-driven criteria for one rung of automated class progression
+// (USER_CLASSES_PLAN §4). One row = "a user on fromRank advances to toRank once
+// they clear these thresholds." Tunable without a deploy. The pure evaluator in
+// rankProgression.ts owns the decision logic; rankProgressionJob loads these rows
+// and maps them onto the evaluator's RankPromotionRule interface field-for-field.
+// minContributed is BigInt (bytes) — deliberately NOT UserRank.uploadRequired Int,
+// which overflows past ~2 GiB.
+model RankPromotionRule {
+  id                Int                 @id @default(autoincrement())
+  fromRankId        Int
+  fromRank          UserRank            @relation("RankPromotionFrom", fields: [fromRankId], references: [id], onDelete: Cascade)
+  toRankId          Int
+  toRank            UserRank            @relation("RankPromotionTo", fields: [toRankId], references: [id], onDelete: Cascade)
+  minContributed    BigInt              @default(0)
+  minRatio          Float               @default(0)
+  minContributions  Int                 @default(0)
+  minAccountAgeDays Int                 @default(0)
+  extra             RankExtraPredicate?
+  enabled           Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([fromRankId, toRankId])
+  @@index([fromRankId])
+  @@index([toRankId])
+  @@map("rank_promotion_rules")
+}
+
+model UserSettings {
+  id                       Int                @id @default(autoincrement())
+  siteAppearance           String             @default("sublime")
+  externalStylesheet       String?
+  styledTooltips           Boolean            @default(true)
+  paranoia                 Int                @default(0)
+  notificationMethod       NotificationMethod @default(Traditional)
+  showEmail                Boolean            @default(false)
+  showLastSeen             Boolean            @default(false)
+  showContributedStats     Boolean            @default(true)
+  showConsumedStats        Boolean            @default(true)
+  showRatioStats           Boolean            @default(true)
+  user                     User?
+  // The AuthorStylesheet adopted into this member's Site Stylesheet slot
+  // (PRD-03 #119): what they see on the general site. Null = on the Site Theme
+  // (Sublime/Default). SetNull on delete so a pruned sheet clears its adopters'
+  // pointers rather than orphaning them. Profile/Community slots are deferred.
+  activeAuthorStylesheetId Int?
+  activeAuthorStylesheet   AuthorStylesheet?  @relation(fields: [activeAuthorStylesheetId], references: [id])
+
+  @@index([activeAuthorStylesheetId])
+  @@map("user_settings")
+}
+
+model User {
+  id                    Int                 @id @default(autoincrement())
+  username              String              @unique
+  email                 String              @unique
+  password              String
+  avatar                String?
+  userRankId            Int
+  userRank              UserRank            @relation(fields: [userRankId], references: [id])
+  secondaryRanks        UserSecondaryRank[]
+  userSettingsId        Int                 @unique
+  userSettings          UserSettings        @relation(fields: [userSettingsId], references: [id])
+  profileId             Int                 @unique
+  profile               Profile             @relation(fields: [profileId], references: [id])
+  inviteCount           Int                 @default(0)
+  contributed           BigInt              @default(0)
+  consumed              BigInt              @default(0)
+  totalEarned           BigInt              @default(0)
+  ratio                 Float               @default(1)
+  ratioWatchDownload    Int?
+  lastLogin             DateTime?
+  dateRegistered        DateTime            @default(now())
+  disabled              Boolean             @default(false)
+  isArtist              Boolean             @default(false)
+  isDonor               Boolean             @default(false)
+  canDownload           Boolean             @default(true)
+  // Staff-pinned rank: when true the automated progression engine
+  // (rankProgressionJob) will not promote or demote this user (USER_CLASSES_PLAN
+  // §4). Set by staff via the manual override; the evaluator treats it as a freeze.
+  rankLocked            Boolean             @default(false)
+  adminComment          String?
+  staffBio              String?             @db.VarChar(500)
+  banDate               DateTime?
+  banReason             String?
+  warned                DateTime?
+  warnedTimes           Int                 @default(0)
+  lastIp                String?
+  disablePm             Boolean             @default(false)
+  // Verified IRC Link (ADR-0015): ircNick holds only a *verified* nick, written
+  // on promotion. A Nick Claim (unproven) lives in pendingIrcNick + nonce, which
+  // reserve nothing — pendingIrcNick is intentionally NOT unique, so multiple
+  // members may claim the same nick; first to verify wins the unique ircNick slot.
+  ircNick               String?             @unique
+  pendingIrcNick        String?
+  ircNickNonce          String?
+  ircNickNonceExpiresAt DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  invitesSent              Invite[]
+  inviteTree               InviteTree?                      @relation("InviteTreeMember")
+  invitees                 InviteTree[]                     @relation("InviteTreeInviter")
+  friendRequestsSent       FriendRelationship[]             @relation("FriendRequester")
+  friendRequestsReceived   FriendRelationship[]             @relation("FriendRecipient")
+  communityStaff           Community[]                      @relation("CommunityStaff")
+  communitiesLed           Community[]                      @relation("CommunityLeader")
+  consumer                 Consumer?
+  contributor              Contributor?
+  contributions            Contribution[]
+  forumTopics              ForumTopic[]
+  forumPosts               ForumPost[]
+  forumTopicNotes          ForumTopicNote[]
+  artistHistories          ArtistHistory[]                  @relation("HistoryEditedBy")
+  collages                 Collage[]                        @relation("CollageCreator")
+  collageEntries           CollageEntry[]                   @relation("CollageEntryAdder")
+  collageSubscriptions     CollageSubscription[]            @relation("CollageSubscriber")
+  bookmarkArtists          BookmarkArtist[]
+  bookmarkCollages         BookmarkCollage[]
+  bookmarkReleases         BookmarkRelease[]
+  bookmarkCommunities      BookmarkCommunity[]
+  bookmarkRequests         BookmarkRequest[]
+  subscriptions            Subscription[]
+  commentSubscriptions     CommentSubscription[]
+  artistSubscriptions      ArtistSubscription[]
+  notifications            Notification[]                   @relation("NotificationUser")
+  actedNotifications       Notification[]                   @relation("NotificationActor")
+  globalNotices            GlobalNotice[]
+  blogs                    Blog[]
+  posts                    Post[]
+  apiApplications          ApiApplication[]
+  apiUsers                 ApiUser[]
+  donorReward              DonorReward?
+  donorForumUsername       DonorForumUsername?
+  donations                Donation[]
+  notes                    Note[]
+  applicants               Applicant[]
+  comments                 Comment[]                        @relation("CommentAuthor")
+  editedComments           Comment[]                        @relation("CommentEditor")
+  postComments             PostComment[]
+  forumPostEdits           ForumPostEdit[]
+  auditLogs                AuditLog[]
+  requests                 Request[]                        @relation("RequestAuthor")
+  filledRequests           Request[]                        @relation("RequestFiller")
+  requestBounties          RequestBounty[]
+  economyTransactions      EconomyTransaction[]
+  economyActed             EconomyTransaction[]             @relation("EconomyActor")
+  requestActions           RequestAction[]                  @relation("RequestActionActor")
+  requestFills             RequestFill[]                    @relation("RequestFillFiller")
+  downloadGrantsAsConsumer DownloadAccessGrant[]            @relation("DownloadConsumer")
+  downloadGrantsAsContrib  DownloadAccessGrant[]            @relation("DownloadContributor")
+  downloadGrantsReversed   DownloadAccessGrant[]            @relation("DownloadGrantReversedBy")
+  ratioPolicyState         RatioPolicyState?
+  contributionReports      ContributionReport[]
+  pmParticipations         PrivateConversationParticipant[] @relation("PmParticipant")
+  pmMessagesSent           PrivateMessage[]                 @relation("PmSender")
+  staffInboxConversations  StaffInboxConversation[]         @relation("StaffInboxOwner")
+  staffInboxAssigned       StaffInboxConversation[]         @relation("StaffInboxAssignee")
+  staffInboxResolved       StaffInboxConversation[]         @relation("StaffInboxResolver")
+  staffInboxMessages       StaffInboxMessage[]              @relation("StaffInboxMsgSender")
+  reportsFiled             Report[]                         @relation("ReportFiler")
+  reportsClaimed           Report[]                         @relation("ReportClaimer")
+  reportsResolved          Report[]                         @relation("ReportResolver")
+  reportNotes              ReportNote[]                     @relation("ReportNoteAuthor")
+  sessions                 UserSession[]
+  accountRecoveries        AccountRecovery[]
+  emailHistories           UserEmailHistory[]
+  warnings                 UserWarning[]                    @relation("UserWarnings")
+  warningsIssued           UserWarning[]                    @relation("UserWarnedBy")
+  moderationNotes          UserModerationNote[]             @relation("UserModerationNotes")
+  moderationNotesAuthored  UserModerationNote[]             @relation("ModerationNoteAuthor")
+  secondaryRankAssignments UserSecondaryRank[]              @relation("UserSecondaryRankAssignedBy")
+  pmDrafts                 PmDraft[]
+  massMessagesSent         MassMessage[]                    @relation("MassMessageSender")
+  siteHistoryEntries       SiteHistory[]
+  requestVotes             RequestVote[]
+  releaseVotes             ReleaseVote[]
+  releaseTagVotes          ReleaseTagVote[]
+  releaseTagsAdded         ReleaseTag[]                     @relation("ReleaseTagAdder")
+  releaseHistoriesAuthored ReleaseHistory[]                 @relation("ReleaseHistoryActor")
+  donorRank                UserDonorRank?
+  wikiPagesAuthored        WikiPage[]                       @relation("WikiPageAuthor")
+  wikiRevisionsAuthored    WikiRevision[]                   @relation("WikiRevisionAuthor")
+  wikiAliasesCreated       WikiAlias[]                      @relation("WikiAliasCreator")
+  rulesPagesAuthored       RulesPage[]                      @relation("RulesPageAuthor")
+  userStatSnapshots        UserStatSnapshot[]
+  crsSnapshots             CrsSnapshot[]
+  tagAliasesCreated        TagAlias[]                       @relation("TagAliasCreator")
+  authoredStylesheets      AuthorStylesheet[]
+  ownedAssets              Asset[]
+
+  @@index([userRankId])
+  @@map("users")
+}
+
+model UserSecondaryRank {
+  userId       Int
+  userRankId   Int
+  assignedById Int?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userRank     UserRank @relation(fields: [userRankId], references: [id], onDelete: Cascade)
+  assignedBy   User?    @relation("UserSecondaryRankAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, userRankId])
+  @@index([userRankId])
+  @@index([assignedById])
+  @@map("user_secondary_ranks")
+}
+
+model Invite {
+  id        Int          @id @default(autoincrement())
+  inviterId Int
+  inviter   User         @relation(fields: [inviterId], references: [id])
+  inviteKey String       @unique
+  email     String       @unique
+  expires   DateTime
+  reason    String       @default("")
+  status    InviteStatus @default(pending)
+
+  @@index([status])
+  @@map("invites")
+}
+
+// Who-invited-whom topology (#61). Adjacency list: one row per member, pointing
+// at their inviter. Subtrees are read with a recursive walk over `inviterId`;
+// depth/ordering are derived at read time (no denormalized tree columns). The
+// same edges are what ADR-0004 Contagion traverses.
+model InviteTree {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation("InviteTreeMember", fields: [userId], references: [id], onDelete: Cascade)
+  inviterId Int?
+  inviter   User?    @relation("InviteTreeInviter", fields: [inviterId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([inviterId])
+  @@map("invite_trees")
+}
+
+enum FriendStatus {
+  pending
+  accepted
+  rejected
+}
+
+// PRD-01 Friends System: a friend-request lifecycle (pending → accepted /
+// rejected). One row per directed request; an accepted row represents the
+// symmetric friendship between requester and recipient. `comment` is a note on
+// the relationship.
+model FriendRelationship {
+  id          Int          @id @default(autoincrement())
+  requesterId Int
+  requester   User         @relation("FriendRequester", fields: [requesterId], references: [id])
+  recipientId Int
+  recipient   User         @relation("FriendRecipient", fields: [recipientId], references: [id])
+  status      FriendStatus @default(pending)
+  comment     String       @default("")
+  createdAt   DateTime     @default(now())
+
+  @@unique([requesterId, recipientId])
+  @@index([recipientId, status])
+  @@map("friend_relationships")
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+model Profile {
+  id                  Int     @id @default(autoincrement())
+  avatar              String?
+  avatarMouseoverText String?
+  profileTitle        String?
+  profileInfo         String? @db.Text
+  user                User?
+
+  @@map("profiles")
+}
+
+/// A partial unique index enforces exactly one default stylesheet at the DB level.
+/// This index is not representable in Prisma DSL and is created in raw SQL migration:
+/// CREATE UNIQUE INDEX "stylesheets_one_default" ON "stylesheets"("isDefault") WHERE "isDefault" = true;
+/// `cssUrl` is nullable: null means the row has no delivery target — it appears
+/// in the picker and renders nothing (Sublime, whose look is the bundled
+/// Tailwind itself). Every non-null value must be a `/css` delivery target; the
+/// total partition is defined and enforced in modules/stylesheetRegistry.ts
+/// (ADR-0024 §4, #371).
+model Stylesheet {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String   @default("")
+  cssUrl      String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("stylesheets")
+}
+
+/// A user-authored stylesheet saved for others to adopt (PRD-03, descent
+/// target #4). Many per author (cardinality fixed in #119; the rank-gated count
+/// limit is deferred). The keystone the shipped `scoreStylesheetSelection` (#84)
+/// hooks onto: #118 saves it, #119 adopts it into a viewer's Site Stylesheet
+/// slot, #120 scores the adoption. `adopters` are the UserSettings currently
+/// pointing their Site slot here.
+model AuthorStylesheet {
+  id        Int            @id @default(autoincrement())
+  authorId  Int
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  name      String
+  source    String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  adopters  UserSettings[]
+
+  @@index([authorId])
+  @@map("author_stylesheets")
+}
+
+enum AssetKind {
+  ThemeImage
+  ThemeFont
+}
+
+/// A binary asset a stored row references — theme imagery and web fonts today,
+/// content imagery (cover art, avatars, logos) later. ADR-0026: the api owns the
+/// bytes it serves, so a reference can be verified from the api that resolves it
+/// rather than pointing into another repo's static tree.
+///
+/// Content-addressed: `hash` (sha256 of `data`) is the public address, not `id`.
+/// That makes the serve route non-enumerable and `Cache-Control: immutable`
+/// honest — the bytes at a hash can never change. Identical bytes stored twice
+/// collapse to one row.
+///
+/// Backed by a Postgres `Bytes` column rather than an object store: the api
+/// container has no writable volume and compose lives behind the ADR-0027
+/// publish/deploy boundary, so a filesystem or S3 backend would not work until a
+/// cross-repo change landed. Deliberately bounded — revisit when content imagery
+/// makes the table large. `assetStore.ts` is the seam a driver swap replaces.
+model Asset {
+  id        Int       @id @default(autoincrement())
+  hash      String    @unique
+  mime      String
+  size      Int
+  kind      AssetKind
+  data      Bytes
+  /// Null = site-owned (the built-in theme fixtures). A user-owned asset dies
+  /// with its owner, extending the AuthorStylesheet cascade precedent.
+  ownerId   Int?
+  owner     User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([ownerId])
+  @@map("assets")
+}
+
+// ─── Forum ────────────────────────────────────────────────────────────────────
+
+model ForumCategory {
+  id     Int     @id @default(autoincrement())
+  name   String
+  sort   Int
+  forums Forum[]
+
+  @@map("forum_categories")
+}
+
+model Forum {
+  id              Int                 @id @default(autoincrement())
+  forumCategoryId Int
+  forumCategory   ForumCategory       @relation(fields: [forumCategoryId], references: [id])
+  sort            Int
+  name            String
+  description     String              @default("")
+  minClassRead    Int                 @default(0)
+  minClassWrite   Int                 @default(0)
+  minClassCreate  Int                 @default(0)
+  numTopics       Int                 @default(0)
+  numPosts        Int                 @default(0)
+  autoLock        Boolean             @default(true)
+  autoLockWeeks   Int                 @default(4)
+  isTrash         Boolean             @default(false)
+  lastTopicId     Int?
+  lastTopic       ForumTopic?         @relation("ForumLastTopic", fields: [lastTopicId], references: [id], onDelete: SetNull)
+  topics          ForumTopic[]        @relation("ForumTopics")
+  specificRules   ForumSpecificRule[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@map("forums")
+}
+
+model ForumTopic {
+  id            Int                  @id @default(autoincrement())
+  forumId       Int
+  forum         Forum                @relation("ForumTopics", fields: [forumId], references: [id], onDelete: Restrict)
+  threadId      Int?
+  thread        Thread?              @relation(fields: [threadId], references: [id])
+  title         String
+  authorId      Int
+  author        User                 @relation(fields: [authorId], references: [id])
+  isLocked      Boolean              @default(false)
+  isSticky      Boolean              @default(false)
+  ranking       Int                  @default(0)
+  numPosts      Int                  @default(0)
+  lastPostId    Int?
+  lastPost      ForumPost?           @relation("TopicLastPost", fields: [lastPostId], references: [id], onDelete: SetNull)
+  posts         ForumPost[]          @relation("TopicPosts")
+  lastForumOf   Forum[]              @relation("ForumLastTopic")
+  notes         ForumTopicNote[]
+  poll          ForumPoll?
+  lastRead      ForumLastReadTopic[]
+  concert       Concert?
+  specificRules ForumSpecificRule[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  deletedAt     DateTime?
+
+  @@index([forumId])
+  @@index([authorId])
+  @@map("forum_topics")
+}
+
+model ForumPost {
+  id           Int                  @id @default(autoincrement())
+  forumTopicId Int
+  forumTopic   ForumTopic           @relation("TopicPosts", fields: [forumTopicId], references: [id], onDelete: Cascade)
+  authorId     Int
+  author       User                 @relation(fields: [authorId], references: [id])
+  body         String               @db.Text
+  edits        ForumPostEdit[]
+  lastPostOf   ForumTopic[]         @relation("TopicLastPost")
+  lastReadOf   ForumLastReadTopic[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  deletedAt    DateTime?
+
+  @@index([forumTopicId])
+  @@index([authorId])
+  @@map("forum_posts")
+}
+
+model ForumPostEdit {
+  id           Int       @id @default(autoincrement())
+  forumPostId  Int
+  forumPost    ForumPost @relation(fields: [forumPostId], references: [id], onDelete: Cascade)
+  editorId     Int
+  editor       User      @relation(fields: [editorId], references: [id])
+  previousBody String    @db.Text
+  editedAt     DateTime  @default(now())
+
+  @@index([forumPostId])
+  @@map("forum_post_edits")
+}
+
+model ForumPoll {
+  id           Int             @id @default(autoincrement())
+  forumTopicId Int             @unique
+  forumTopic   ForumTopic      @relation(fields: [forumTopicId], references: [id], onDelete: Cascade)
+  question     String
+  answers      String          @db.Text
+  featured     DateTime?
+  closed       Boolean         @default(false)
+  votes        ForumPollVote[]
+
+  @@map("forum_polls")
+}
+
+model ForumPollVote {
+  id          Int       @id @default(autoincrement())
+  forumPollId Int
+  forumPoll   ForumPoll @relation(fields: [forumPollId], references: [id], onDelete: Cascade)
+  userId      Int
+  vote        Int
+
+  @@unique([forumPollId, userId])
+  @@map("forum_poll_votes")
+}
+
+model ForumLastReadTopic {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  forumTopicId Int
+  forumTopic   ForumTopic @relation(fields: [forumTopicId], references: [id], onDelete: Cascade)
+  forumPostId  Int
+  forumPost    ForumPost  @relation(fields: [forumPostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, forumTopicId])
+  @@map("forum_last_read_topics")
+}
+
+model ForumTopicNote {
+  id           Int        @id @default(autoincrement())
+  forumTopicId Int
+  forumTopic   ForumTopic @relation(fields: [forumTopicId], references: [id], onDelete: Cascade)
+  authorId     Int
+  author       User       @relation(fields: [authorId], references: [id])
+  body         String     @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("forum_topic_notes")
+}
+
+model ForumSpecificRule {
+  id           Int             @id @default(autoincrement())
+  targetType   ForumRuleTarget
+  forumId      Int?
+  forum        Forum?          @relation(fields: [forumId], references: [id], onDelete: SetNull)
+  threadId     Int?
+  thread       Thread?         @relation(fields: [threadId], references: [id])
+  forumTopicId Int?
+  forumTopic   ForumTopic?     @relation(fields: [forumTopicId], references: [id], onDelete: SetNull)
+
+  @@map("forum_specific_rules")
+}
+
+model Thread {
+  id            Int                 @id @default(autoincrement())
+  type          ThreadType
+  createdAt     DateTime            @default(now())
+  forumTopics   ForumTopic[]
+  applicants    Applicant[]
+  notes         Note[]
+  specificRules ForumSpecificRule[]
+
+  @@map("threads")
+}
+
+// ─── Artist ───────────────────────────────────────────────────────────────────
+
+model Artist {
+  id             Int                  @id @default(autoincrement())
+  name           String
+  vanityHouse    Boolean              @default(false)
+  histories      ArtistHistory[]
+  aliases        ArtistAlias[]        @relation("ArtistAliases")
+  redirects      ArtistAlias[]        @relation("ArtistRedirects")
+  tags           ArtistTag[]
+  concerts       Concert[]
+  similarTo      SimilarArtist[]      @relation("ArtistSimilar")
+  similarFrom    SimilarArtist[]      @relation("SimilarArtistRef")
+  collaborations Contribution[]       @relation("ContributionCollaborators")
+  bookmarks      BookmarkArtist[]
+  comments       Comment[]
+  RequestArtist  RequestArtist[]
+  subscriptions  ArtistSubscription[]
+  credits        ReleaseArtist[]
+
+  @@map("artists")
+}
+
+model ArtistHistory {
+  id          Int      @id @default(autoincrement())
+  artistId    Int
+  artist      Artist   @relation(fields: [artistId], references: [id])
+  data        Json
+  editedBy    Int
+  editedUser  User     @relation("HistoryEditedBy", fields: [editedBy], references: [id])
+  editedAt    DateTime @default(now())
+  description String?
+
+  @@map("artist_histories")
+}
+
+model ArtistAlias {
+  id         Int    @id @default(autoincrement())
+  artistId   Int
+  artist     Artist @relation("ArtistAliases", fields: [artistId], references: [id])
+  redirectId Int
+  redirect   Artist @relation("ArtistRedirects", fields: [redirectId], references: [id])
+  userId     Int?
+
+  @@map("artist_aliases")
+}
+
+model ArtistTag {
+  id            Int    @id @default(autoincrement())
+  artistId      Int
+  artist        Artist @relation(fields: [artistId], references: [id])
+  tagId         Int
+  tag           Tag    @relation(fields: [tagId], references: [id])
+  positiveVotes Int    @default(1)
+  negativeVotes Int    @default(1)
+  userId        Int?
+
+  @@unique([artistId, tagId])
+  @@index([artistId])
+  @@map("artist_tags")
+}
+
+model ReleaseTag {
+  id            Int              @id @default(autoincrement())
+  releaseId     Int
+  release       Release          @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  tagId         Int
+  tag           Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  positiveVotes Int              @default(1)
+  negativeVotes Int              @default(1)
+  userId        Int?
+  user          User?            @relation("ReleaseTagAdder", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  votes         ReleaseTagVote[]
+
+  @@unique([releaseId, tagId])
+  @@index([releaseId])
+  @@index([tagId])
+  @@map("release_tags")
+}
+
+enum ReleaseTagVoteDirection {
+  up
+  down
+}
+
+model ReleaseTagVote {
+  id           Int                     @id @default(autoincrement())
+  releaseTagId Int
+  releaseTag   ReleaseTag              @relation(fields: [releaseTagId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  direction    ReleaseTagVoteDirection
+  createdAt    DateTime                @default(now())
+
+  @@unique([releaseTagId, userId, direction])
+  @@index([releaseTagId])
+  @@index([userId])
+  @@map("release_tag_votes")
+}
+
+model ArtistSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  artistId  Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, artistId])
+  @@index([artistId])
+  @@map("artist_subscriptions")
+}
+
+model Concert {
+  id           Int        @id @default(autoincrement())
+  artistId     Int
+  artist       Artist     @relation(fields: [artistId], references: [id])
+  forumTopicId Int        @unique
+  forumTopic   ForumTopic @relation(fields: [forumTopicId], references: [id], onDelete: Cascade)
+
+  @@map("concerts")
+}
+
+model SimilarArtist {
+  id              Int    @id @default(autoincrement())
+  artistId        Int
+  artist          Artist @relation("ArtistSimilar", fields: [artistId], references: [id])
+  similarArtistId Int
+  similarArtist   Artist @relation("SimilarArtistRef", fields: [similarArtistId], references: [id])
+  score           Int    @default(0)
+  votes           Json   @default("[]")
+
+  @@unique([artistId, similarArtistId])
+  @@map("similar_artists")
+}
+
+// ─── Community ────────────────────────────────────────────────────────────────
+
+model Community {
+  id                    Int                       @id @default(autoincrement())
+  name                  String                    @unique
+  description           String?                   @db.Text
+  image                 String
+  registrationStatus    RegistrationStatus
+  type                  CommunityType
+  allowDuplicateFormats Boolean                   @default(true)
+  consumers             Consumer[]                @relation("CommunityConsumers")
+  contributors          Contributor[]
+  releases              Release[]
+  comments              Comment[]
+  staff                 User[]                    @relation("CommunityStaff")
+  // The founding/owning member. A superset of `staff`: setting it always
+  // connects the same user to `staff` + upserts a Consumer (ADR-0021).
+  // Nullable so a disabled/departed leader leaves a recoverable pointer
+  // rather than orphaning the community.
+  leaderId              Int?
+  leader                User?                     @relation("CommunityLeader", fields: [leaderId], references: [id])
+  doNotContribute       DoNotContribute[]
+  bookmarks             BookmarkCommunity[]
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  Request               Request[]
+  healthSnapshots       CommunityHealthSnapshot[]
+
+  @@index([leaderId])
+  @@map("communities")
+}
+
+model Consumer {
+  id            Int            @id @default(autoincrement())
+  userId        Int            @unique
+  user          User           @relation(fields: [userId], references: [id])
+  releases      Release[]      @relation("ReleaseConsumers")
+  communities   Community[]    @relation("CommunityConsumers")
+  contributions Contribution[] @relation("ContributionConsumers")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("consumers")
+}
+
+model Contributor {
+  id            Int            @id @default(autoincrement())
+  userId        Int            @unique
+  user          User           @relation(fields: [userId], references: [id])
+  communityId   Int
+  community     Community      @relation(fields: [communityId], references: [id])
+  contributions Contribution[]
+  releases      Release[]      @relation("ReleaseContributors")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("contributors")
+}
+
+model Release {
+  id              Int                   @id @default(autoincrement())
+  title           String                @db.VarChar(100)
+  image           String?
+  description     String                @db.VarChar(1000)
+  communityId     Int?
+  community       Community?            @relation(fields: [communityId], references: [id])
+  consumers       Consumer[]            @relation("ReleaseConsumers")
+  contributors    Contributor[]         @relation("ReleaseContributors")
+  contributions   Contribution[]
+  type            ReleaseType
+  releaseType     ReleaseCategory
+  year            Int
+  bookmarks       BookmarkRelease[]
+  comments        Comment[]
+  collageEntries  CollageEntry[]
+  votes           ReleaseVote[]
+  releaseTags     ReleaseTag[]
+  historyEntries  ReleaseHistory[]
+  voteAggregate   ReleaseVoteAggregate?
+  snapshotEntries Top10SnapshotEntry[]
+  credits         ReleaseArtist[]
+  editions        Edition[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([communityId])
+  @@index([year])
+  @@index([createdAt])
+  @@map("releases")
+}
+
+model Contribution {
+  id                      Int                   @id @default(autoincrement())
+  userId                  Int
+  user                    User                  @relation(fields: [userId], references: [id])
+  releaseId               Int
+  release                 Release               @relation(fields: [releaseId], references: [id])
+  contributorId           Int
+  contributor             Contributor           @relation(fields: [contributorId], references: [id])
+  releaseDescription      String?               @db.VarChar(1000)
+  consumers               Consumer[]            @relation("ContributionConsumers")
+  collaborators           Artist[]              @relation("ContributionCollaborators")
+  comments                Comment[]
+  downloadUrl             String
+  sizeInBytes             BigInt?
+  approvedAccountingBytes BigInt?
+  linkStatus              LinkHealthStatus      @default(UNKNOWN)
+  linkCheckedAt           DateTime?
+  linkStatusChangedAt     DateTime?
+  // Cumulative confirmed-PASS uptime, the substrate for the lifetime link-health
+  // CRS dimension (ADR-0019, #95). `healthyMs` is banked PASS milliseconds
+  // excluding the currently-open segment; `healthySince` is when the current open
+  // PASS segment began (null when not currently PASS). Live uptime =
+  // healthyMs + (healthySince ? now - healthySince : 0). The time analog of
+  // User.contributed — a substrate accumulator, not a score (ADR-0007).
+  healthyMs               BigInt                @default(0)
+  healthySince            DateTime?
+  // Ratio-exempt flag (PRD-06 #4). Read at consumption time in downloads.ts to
+  // suppress accrual; staff-settable and audited. See RatioExempt.
+  ratioExempt             RatioExempt           @default(NONE)
+  type                    FileType
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  Request                 Request[]
+  fills                   RequestFill[]
+  downloadAccessGrants    DownloadAccessGrant[]
+  reports                 ContributionReport[]
+  editionId               Int
+  edition                 Edition               @relation(fields: [editionId], references: [id])
+  releaseFile             ReleaseFile?
+
+  @@index([userId])
+  @@index([releaseId])
+  @@index([contributorId])
+  @@index([editionId])
+  @@map("contributions")
+}
+
+// Music-file metadata for a Contribution. One row per music Contribution
+// (1:1). Holds the per-file rip fingerprint — bitrate + log/cue/scene — that
+// is specific to the Release/music Contribution type and must not sit on the
+// generic Contribution spine. Other Contribution types (Film, eLearning,
+// ApiPlugin) attach their own analogous metadata model. See PRD-04.
+model ReleaseFile {
+  id             Int          @id @default(autoincrement())
+  contributionId Int          @unique
+  contribution   Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  bitrate        Bitrate?
+  hasLog         Boolean      @default(false)
+  hasCue         Boolean      @default(false)
+  isScene        Boolean      @default(false)
+
+  @@map("release_files")
+}
+
+// Credits an artist on a release with a role (Main, Guest, …). Replaces the
+// single Release.artistId so a release can carry several artists. (#72)
+model ReleaseArtist {
+  id        Int        @id @default(autoincrement())
+  releaseId Int
+  release   Release    @relation(fields: [releaseId], references: [id])
+  artistId  Int
+  artist    Artist     @relation(fields: [artistId], references: [id])
+  role      ArtistRole @default(Main)
+
+  @@unique([releaseId, artistId, role])
+  @@index([artistId])
+  @@map("release_artists")
+}
+
+// An edition of a release: edition-scoped metadata (remaster/reissue, label,
+// catalogue №, media) that does NOT belong on the release identity. Sits
+// between Release and Contribution. (#72)
+model Edition {
+  id               Int            @id @default(autoincrement())
+  releaseId        Int
+  release          Release        @relation(fields: [releaseId], references: [id])
+  title            String?
+  year             Int?
+  recordLabel      String?
+  catalogueNumber  String?
+  media            ReleaseMedia?
+  isRemaster       Boolean        @default(false)
+  isUnknownEdition Boolean        @default(false)
+  contributions    Contribution[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([releaseId])
+  @@map("editions")
+}
+
+enum ArtistRole {
+  Main
+  Guest
+  Composer
+  Conductor
+  DJ
+  Remixer
+  Producer
+  Arranger
+}
+
+enum Bitrate {
+  Lossless
+  Lossless24
+  Kbps320
+  Kbps256
+  KbpsV0
+  Kbps192
+  KbpsV2
+  Kbps128
+  Other
+}
+
+enum ReleaseMedia {
+  CD
+  WEB
+  Vinyl
+  SACD
+  DVD
+  Cassette
+  BluRay
+  DAT
+  Soundboard
+  Other
+}
+
+model DoNotContribute {
+  id          Int       @id @default(autoincrement())
+  name        String
+  comment     String    @db.Text
+  communityId Int
+  community   Community @relation(fields: [communityId], references: [id])
+  userId      Int
+  createdAt   DateTime  @default(now())
+
+  @@map("do_not_contribute")
+}
+
+// ─── Comment ──────────────────────────────────────────────────────────────────
+
+model Comment {
+  id             Int           @id @default(autoincrement())
+  page           CommentPage
+  authorId       Int
+  author         User          @relation("CommentAuthor", fields: [authorId], references: [id])
+  body           String        @db.Text
+  editedUserId   Int?
+  editedUser     User?         @relation("CommentEditor", fields: [editedUserId], references: [id])
+  editedAt       DateTime?
+  artistId       Int?
+  artist         Artist?       @relation(fields: [artistId], references: [id])
+  communityId    Int?
+  community      Community?    @relation(fields: [communityId], references: [id])
+  contributionId Int?
+  contribution   Contribution? @relation(fields: [contributionId], references: [id])
+  requestId      Int?
+  request        Request?      @relation(fields: [requestId], references: [id])
+  releaseId      Int?
+  release        Release?      @relation(fields: [releaseId], references: [id])
+  collageId      Int?
+  collage        Collage?      @relation(fields: [collageId], references: [id])
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+
+  @@index([page, communityId])
+  @@index([page, contributionId])
+  @@index([page, requestId])
+  @@index([page, artistId])
+  @@index([page, releaseId])
+  @@index([page, collageId])
+  @@map("comments")
+}
+
+// ─── Donation ─────────────────────────────────────────────────────────────────
+
+model Donation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  email     String
+  donatedAt DateTime
+  currency  String   @default("USD")
+  source    String   @default("")
+  reason    String
+  rank      Int      @default(0)
+  addedBy   Int      @default(0)
+  totalRank Int      @default(0)
+
+  @@index([userId])
+  @@index([donatedAt])
+  @@map("donations")
+}
+
+model BitcoinDonation {
+  id             Int    @id @default(autoincrement())
+  bitcoinAddress String
+  amount         Float
+
+  @@index([bitcoinAddress])
+  @@map("bitcoin_donations")
+}
+
+model DonorForumUsername {
+  id       Int     @id @default(autoincrement())
+  userId   Int     @unique
+  user     User    @relation(fields: [userId], references: [id])
+  prefix   String  @default("")
+  suffix   String  @default("")
+  useComma Boolean @default(true)
+
+  @@map("donor_forum_usernames")
+}
+
+model DonorReward {
+  id                  Int    @id @default(autoincrement())
+  userId              Int    @unique
+  user                User   @relation(fields: [userId], references: [id])
+  iconMouseOverText   String @default("")
+  avatarMouseOverText String @default("")
+  customIcon          String @default("")
+  secondAvatar        String @default("")
+  customIconLink      String @default("")
+  profileInfo1        String @default("")
+  profileInfo2        String @default("")
+  profileInfo3        String @default("")
+  profileInfo4        String @default("")
+  profileInfoTitle1   String @default("")
+  profileInfoTitle2   String @default("")
+  profileInfoTitle3   String @default("")
+  profileInfoTitle4   String @default("")
+
+  @@map("donor_rewards")
+}
+
+// ─── Collage ──────────────────────────────────────────────────────────────────
+
+model Collage {
+  id                Int                   @id @default(autoincrement())
+  name              String                @unique @db.VarChar(100)
+  description       String                @db.Text
+  userId            Int
+  user              User                  @relation("CollageCreator", fields: [userId], references: [id])
+  categoryId        Int                   @default(1)
+  tags              String[]
+  isLocked          Boolean               @default(false)
+  isDeleted         Boolean               @default(false)
+  maxEntries        Int                   @default(0)
+  maxEntriesPerUser Int                   @default(0)
+  isFeatured        Boolean               @default(false)
+  numEntries        Int                   @default(0)
+  numSubscribers    Int                   @default(0)
+  entries           CollageEntry[]
+  subscriptions     CollageSubscription[]
+  bookmarks         BookmarkCollage[]
+  comments          Comment[]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  deletedAt         DateTime?
+
+  @@index([userId])
+  @@index([categoryId])
+  @@map("collages")
+}
+
+model CollageEntry {
+  id        Int      @id @default(autoincrement())
+  collageId Int
+  collage   Collage  @relation(fields: [collageId], references: [id], onDelete: Cascade)
+  releaseId Int
+  release   Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation("CollageEntryAdder", fields: [userId], references: [id])
+  sort      Int      @default(0)
+  addedAt   DateTime @default(now())
+
+  @@unique([collageId, releaseId])
+  @@index([collageId, sort])
+  @@map("collage_entries")
+}
+
+model CollageSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation("CollageSubscriber", fields: [userId], references: [id])
+  collageId Int
+  collage   Collage  @relation(fields: [collageId], references: [id], onDelete: Cascade)
+  lastVisit DateTime @default(now())
+
+  @@unique([userId, collageId])
+  @@index([collageId])
+  @@map("collage_subscriptions")
+}
+
+// ─── Bookmark ─────────────────────────────────────────────────────────────────
+
+model BookmarkArtist {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  artistId  Int
+  artist    Artist   @relation(fields: [artistId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, artistId])
+  @@map("bookmark_artists")
+}
+
+model BookmarkCollage {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  collageId Int
+  collage   Collage  @relation(fields: [collageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, collageId])
+  @@map("bookmark_collages")
+}
+
+model BookmarkRelease {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  releaseId Int
+  release   Release  @relation(fields: [releaseId], references: [id])
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, releaseId])
+  @@map("bookmark_releases")
+}
+
+model BookmarkCommunity {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  communityId Int
+  community   Community @relation(fields: [communityId], references: [id])
+  sort        Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, communityId])
+  @@map("bookmark_communities")
+}
+
+model BookmarkRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  requestId Int
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, requestId])
+  @@map("bookmark_requests")
+}
+
+// ─── Requests & Economy ───────────────────────────────────────────────────────
+
+model Request {
+  id                   Int           @id @default(autoincrement())
+  communityId          Int
+  community            Community     @relation(fields: [communityId], references: [id])
+  userId               Int
+  user                 User          @relation("RequestAuthor", fields: [userId], references: [id])
+  title                String
+  description          String        @db.Text
+  type                 ReleaseType
+  year                 Int?
+  image                String?
+  status               RequestStatus @default(open)
+  fillerId             Int?
+  filler               User?         @relation("RequestFiller", fields: [fillerId], references: [id])
+  filledAt             DateTime?
+  filledContributionId Int?
+  filledContribution   Contribution? @relation(fields: [filledContributionId], references: [id])
+
+  bounties  RequestBounty[]
+  artists   RequestArtist[]
+  actions   RequestAction[]
+  fills     RequestFill[]
+  votes     RequestVote[]
+  bookmarks BookmarkRequest[]
+  comments  Comment[]
+  voteCount Int               @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([status])
+  @@map("requests")
+}
+
+model RequestBounty {
+  id        Int      @id @default(autoincrement())
+  requestId Int
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  amount    BigInt
+  createdAt DateTime @default(now())
+
+  @@unique([requestId, userId])
+  @@map("request_bounties")
+}
+
+model RequestArtist {
+  id        Int     @id @default(autoincrement())
+  requestId Int
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  artistId  Int
+  artist    Artist  @relation(fields: [artistId], references: [id])
+
+  @@unique([requestId, artistId])
+  @@map("request_artists")
+}
+
+model EconomyTransaction {
+  id          Int                      @id @default(autoincrement())
+  userId      Int
+  user        User                     @relation(fields: [userId], references: [id])
+  amount      BigInt
+  reason      EconomyTransactionReason
+  contextId   Int?
+  contextType String?
+  actorUserId Int?
+  actor       User?                    @relation("EconomyActor", fields: [actorUserId], references: [id])
+  createdAt   DateTime                 @default(now())
+
+  @@index([userId])
+  @@map("economy_transactions")
+}
+
+model RequestAction {
+  id        Int               @id @default(autoincrement())
+  requestId Int
+  request   Request           @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actorId   Int
+  actor     User              @relation("RequestActionActor", fields: [actorId], references: [id])
+  action    RequestActionType
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  @@index([requestId])
+  @@map("request_actions")
+}
+
+model RequestFill {
+  id             Int          @id @default(autoincrement())
+  requestId      Int
+  request        Request      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  contributionId Int
+  contribution   Contribution @relation(fields: [contributionId], references: [id])
+  fillerId       Int
+  filler         User         @relation("RequestFillFiller", fields: [fillerId], references: [id])
+  awardedAmount  BigInt       @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@index([requestId])
+  @@map("request_fills")
+}
+
+model DownloadAccessGrant {
+  id             Int                 @id @default(autoincrement())
+  consumerId     Int
+  consumer       User                @relation("DownloadConsumer", fields: [consumerId], references: [id])
+  contributorId  Int
+  contributor    User                @relation("DownloadContributor", fields: [contributorId], references: [id])
+  contributionId Int
+  contribution   Contribution        @relation(fields: [contributionId], references: [id])
+  amountBytes    BigInt
+  // Snapshot of the Contribution's exemption at grant time. Reversal reads this
+  // to claw back exactly what accrued — never assume `amountBytes` moved, or an
+  // exempt grant's reversal would manufacture negative balance (PRD-06 #4).
+  ratioExempt    RatioExempt         @default(NONE)
+  status         DownloadGrantStatus @default(COMPLETED)
+  idempotencyKey String?
+  reversedAt     DateTime?
+  reversalReason String?
+  reversedById   Int?
+  reversedBy     User?               @relation("DownloadGrantReversedBy", fields: [reversedById], references: [id])
+  createdAt      DateTime            @default(now())
+
+  @@index([consumerId])
+  @@index([contributionId])
+  @@map("download_access_grants")
+}
+
+model RatioPolicyState {
+  userId               Int               @id
+  user                 User              @relation(fields: [userId], references: [id])
+  status               RatioPolicyStatus @default(OK)
+  watchStartedAt       DateTime?
+  watchExpiresAt       DateTime?
+  consumedAtWatchStart BigInt?
+  leechDisabledAt      DateTime?
+  lastEvaluatedAt      DateTime          @default(now())
+
+  @@map("ratio_policy_states")
+}
+
+model ContributionReport {
+  id             Int          @id @default(autoincrement())
+  contributionId Int
+  contribution   Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  reporterId     Int
+  reporter       User         @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason         String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([contributionId])
+  @@map("contribution_reports")
+}
+
+// ─── Featured ─────────────────────────────────────────────────────────────────
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  body      String   @db.Text
+  threadId  Int?
+  important Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("blogs")
+}
+
+model ContestType {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  @@map("contest_types")
+}
+
+model CoverArt {
+  id      Int       @id @default(autoincrement())
+  groupId Int
+  image   String    @default("")
+  summary String?
+  userId  Int       @default(0)
+  addedAt DateTime?
+
+  @@unique([groupId, image])
+  @@map("cover_art")
+}
+
+model FeaturedAlbum {
+  id       Int      @id @default(autoincrement())
+  groupId  Int
+  threadId Int
+  title    String   @default("")
+  image    String   @default("")
+  started  DateTime
+  ended    DateTime
+
+  @@map("featured_albums")
+}
+
+model FeaturedMerch {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  title     String   @default("")
+  image     String   @default("")
+  started   DateTime
+  ended     DateTime
+  artistId  Int      @default(0)
+
+  @@map("featured_merch")
+}
+
+// ─── Subscriptions & Notifications ───────────────────────────────────────────
+
+model Subscription {
+  id      Int  @id @default(autoincrement())
+  userId  Int
+  user    User @relation(fields: [userId], references: [id])
+  topicId Int
+
+  @@unique([userId, topicId])
+  @@map("subscriptions")
+}
+
+model CommentSubscription {
+  id     Int              @id @default(autoincrement())
+  userId Int
+  user   User             @relation(fields: [userId], references: [id])
+  page   SubscriptionPage
+  pageId Int
+
+  @@unique([userId, page, pageId])
+  @@map("comment_subscriptions")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  user      User             @relation("NotificationUser", fields: [userId], references: [id])
+  type      NotificationType @default(forum_quote)
+  actorId   Int?
+  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id])
+  page      SubscriptionPage
+  pageId    Int
+  postId    Int?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// ─── Content ──────────────────────────────────────────────────────────────────
+
+model Tag {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  occurrences Int          @default(0)
+  artistTags  ArtistTag[]
+  releaseTags ReleaseTag[]
+  aliases     TagAlias[]
+
+  @@map("tags")
+}
+
+model TagAlias {
+  id          Int      @id @default(autoincrement())
+  badTag      String   @unique
+  goodTagId   Int
+  goodTag     Tag      @relation(fields: [goodTagId], references: [id], onDelete: Cascade)
+  createdById Int
+  createdBy   User     @relation("TagAliasCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([goodTagId])
+  @@map("tag_aliases")
+}
+
+enum ReleaseHistoryAction {
+  created
+  edit
+  tag_added
+  tag_removed
+  contribution_added
+}
+
+model ReleaseHistory {
+  id            Int                  @id @default(autoincrement())
+  releaseId     Int
+  release       Release              @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  actorId       Int
+  actor         User                 @relation("ReleaseHistoryActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action        ReleaseHistoryAction
+  summary       String               @db.VarChar(255)
+  changedFields String[]
+  before        Json?
+  after         Json?
+  snapshot      Json?
+  createdAt     DateTime             @default(now())
+
+  @@index([releaseId, createdAt])
+  @@index([actorId])
+  @@map("release_histories")
+}
+
+model Post {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
+  title     String
+  text      String        @db.Text
+  category  String
+  tags      String[]
+  comments  PostComment[]
+  createdAt DateTime      @default(now())
+
+  @@map("posts")
+}
+
+model PostComment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@map("post_comments")
+}
+
+model News {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@map("news")
+}
+
+model GlobalNotice {
+  id          Int       @id @default(autoincrement())
+  message     String    @db.VarChar(500)
+  url         String?
+  createdById Int
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@map("global_notices")
+}
+
+// ─── Applications ─────────────────────────────────────────────────────────────
+
+model Applicant {
+  id        Int      @id @default(autoincrement())
+  roleId    String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  threadId  Int
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  resolved  Boolean  @default(false)
+  body      String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("applicants")
+}
+
+model Note {
+  id         Int            @id @default(autoincrement())
+  threadId   Int
+  thread     Thread         @relation(fields: [threadId], references: [id])
+  userId     Int
+  user       User           @relation(fields: [userId], references: [id])
+  text       String         @db.Text
+  visibility NoteVisibility
+  createdAt  DateTime       @default(now())
+
+  @@map("notes")
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+model ApiApplication {
+  id       Int       @id @default(autoincrement())
+  userId   Int
+  user     User      @relation(fields: [userId], references: [id])
+  token    String    @unique
+  name     String    @db.VarChar(50)
+  apiUsers ApiUser[]
+
+  @@map("api_applications")
+}
+
+model ApiUser {
+  id               Int            @id @default(autoincrement())
+  userId           Int
+  user             User           @relation(fields: [userId], references: [id])
+  apiApplicationId Int
+  apiApplication   ApiApplication @relation(fields: [apiApplicationId], references: [id])
+  token            String         @unique
+  state            ApiUserState
+  access           String
+  createdAt        DateTime       @default(now())
+
+  @@map("api_users")
+}
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+
+model BadPassword {
+  id       Int    @id @default(autoincrement())
+  password String @unique
+
+  @@map("bad_passwords")
+}
+
+model CurrencyConversionRate {
+  id        Int       @id @default(autoincrement())
+  currency  String    @unique
+  rate      Float?
+  updatedAt DateTime?
+
+  @@map("currency_conversion_rates")
+}
+
+model EmailBlacklist {
+  id      Int      @id @default(autoincrement())
+  userId  Int
+  email   String
+  addedAt DateTime
+  comment String   @db.Text
+
+  @@index([email])
+  @@map("email_blacklists")
+}
+
+model IpBan {
+  id     Int @id @default(autoincrement())
+  fromIp Int
+  toIp   Int
+
+  @@map("ip_bans")
+}
+
+model GroupLog {
+  id          Int      @id @default(autoincrement())
+  groupId     Int
+  communityId Int
+  userId      Int      @default(0)
+  info        String?  @db.Text
+  loggedAt    DateTime
+  hidden      Int      @default(0)
+
+  @@map("group_logs")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int
+  action     String
+  targetType String
+  targetId   Int?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─── Private Messaging ────────────────────────────────────────────────────────
+
+model PrivateConversation {
+  id           Int                              @id @default(autoincrement())
+  subject      String                           @db.VarChar(255)
+  messages     PrivateMessage[]
+  participants PrivateConversationParticipant[]
+  createdAt    DateTime                         @default(now())
+  updatedAt    DateTime                         @updatedAt
+
+  @@map("private_conversations")
+}
+
+model PrivateConversationParticipant {
+  userId         Int
+  conversationId Int
+  user           User                @relation("PmParticipant", fields: [userId], references: [id])
+  conversation   PrivateConversation @relation(fields: [conversationId], references: [id])
+  inInbox        Boolean             @default(true)
+  inSentbox      Boolean             @default(false)
+  isRead         Boolean             @default(false)
+  isSticky       Boolean             @default(false)
+  // forwardedToId retained as plain Int (forwarding deferred — see deviation notes)
+  forwardedToId  Int?
+  sentAt         DateTime?
+  receivedAt     DateTime?
+
+  @@id([userId, conversationId])
+  @@index([userId])
+  @@index([conversationId])
+  @@map("private_conversation_participants")
+}
+
+model PrivateMessage {
+  id             Int                 @id @default(autoincrement())
+  conversationId Int
+  conversation   PrivateConversation @relation(fields: [conversationId], references: [id])
+  senderId       Int?
+  sender         User?               @relation("PmSender", fields: [senderId], references: [id])
+  body           String              @db.Text
+  createdAt      DateTime            @default(now())
+
+  @@index([conversationId])
+  @@map("private_messages")
+}
+
+// ─── Staff Inbox ──────────────────────────────────────────────────────────────
+
+model StaffInboxConversation {
+  id             Int                 @id @default(autoincrement())
+  subject        String              @db.VarChar(255)
+  userId         Int
+  user           User                @relation("StaffInboxOwner", fields: [userId], references: [id])
+  status         StaffInboxStatus    @default(Unanswered)
+  assignedUserId Int?
+  assignedUser   User?               @relation("StaffInboxAssignee", fields: [assignedUserId], references: [id])
+  resolverId     Int?
+  resolver       User?               @relation("StaffInboxResolver", fields: [resolverId], references: [id])
+  isReadByUser   Boolean             @default(false)
+  messages       StaffInboxMessage[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedUserId])
+  @@map("staff_inbox_conversations")
+}
+
+model StaffInboxMessage {
+  id             Int                    @id @default(autoincrement())
+  conversationId Int
+  conversation   StaffInboxConversation @relation(fields: [conversationId], references: [id])
+  senderId       Int
+  sender         User                   @relation("StaffInboxMsgSender", fields: [senderId], references: [id])
+  body           String                 @db.Text
+  createdAt      DateTime               @default(now())
+
+  @@index([conversationId])
+  @@map("staff_inbox_messages")
+}
+
+model StaffInboxResponse {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("staff_inbox_responses")
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+model Report {
+  id               Int                     @id @default(autoincrement())
+  reporterId       Int
+  reporter         User                    @relation("ReportFiler", fields: [reporterId], references: [id])
+  targetType       ReportTargetType
+  targetId         Int
+  category         String                  @db.VarChar(50)
+  releaseCategory  ReleaseReportCategory?
+  reason           String                  @db.Text
+  evidence         String?                 @db.Text
+  status           ReportStatus            @default(Open)
+  claimedById      Int?
+  claimedBy        User?                   @relation("ReportClaimer", fields: [claimedById], references: [id])
+  claimedAt        DateTime?
+  resolvedById     Int?
+  resolvedBy       User?                   @relation("ReportResolver", fields: [resolvedById], references: [id])
+  resolvedAt       DateTime?
+  resolution       String?                 @db.Text
+  resolutionAction ReportResolutionAction?
+  notes            ReportNote[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([status])
+  @@index([targetType, targetId])
+  @@index([reporterId])
+  @@index([claimedById])
+  @@map("reports")
+}
+
+model ReportNote {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  report    Report   @relation(fields: [reportId], references: [id])
+  authorId  Int
+  author    User     @relation("ReportNoteAuthor", fields: [authorId], references: [id])
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@map("report_notes")
+}
+
+// ─── Site Settings ────────────────────────────────────────────────────────────
+
+model SiteSettings {
+  id                       Int                @id
+  approvedDomains          String[]
+  registrationStatus       RegistrationStatus @default(closed)
+  maxUsers                 Int                @default(7000)
+  dismissedLaunchChecklist String[]
+  // The one recorded fact for "is this instance installed?" — stamped once by
+  // POST /install. null = awaiting setup. Install state is read from this, never
+  // inferred from row counts (see installState.ts).
+  installedAt              DateTime?
+  updatedAt                DateTime           @updatedAt
+
+  @@map("site_settings")
+}
+
+// ─── Sessions & Account Recovery ─────────────────────────────────────────────
+
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id])
+  ipAddress    String
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  revokedAt    DateTime?
+
+  @@index([userId])
+  @@index([revokedAt])
+  @@map("user_sessions")
+}
+
+model AccountRecovery {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("account_recoveries")
+}
+
+model UserEmailHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  oldEmail  String
+  newEmail  String
+  changedAt DateTime @default(now())
+  ipAddress String?
+
+  @@index([userId])
+  @@map("user_email_histories")
+}
+
+// ─── User Moderation ──────────────────────────────────────────────────────────
+
+model UserWarning {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation("UserWarnings", fields: [userId], references: [id])
+  warnedById Int
+  warnedBy   User      @relation("UserWarnedBy", fields: [warnedById], references: [id])
+  reason     String    @db.Text
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("user_warnings")
+}
+
+model UserModerationNote {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation("UserModerationNotes", fields: [userId], references: [id])
+  authorId  Int
+  author    User     @relation("ModerationNoteAuthor", fields: [authorId], references: [id])
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("user_moderation_notes")
+}
+
+// ─── Donor System ─────────────────────────────────────────────────────────────
+
+model DonorRank {
+  id               Int             @id @default(autoincrement())
+  name             String          @unique
+  minDonation      Float
+  expiresAfterDays Int?
+  perks            Json            @default("{}")
+  color            String          @default("")
+  badge            String          @default("♥")
+  userDonorRanks   UserDonorRank[]
+
+  @@map("donor_ranks")
+}
+
+model UserDonorRank {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  user        User      @relation(fields: [userId], references: [id])
+  donorRankId Int
+  donorRank   DonorRank @relation(fields: [donorRankId], references: [id])
+  grantedAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  grantedById Int?
+
+  @@map("user_donor_ranks")
+}
+
+// ─── Requests: Votes ─────────────────────────────────────────────────────────
+
+model RequestVote {
+  id        Int      @id @default(autoincrement())
+  requestId Int
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([requestId, userId])
+  @@index([requestId])
+  @@map("request_votes")
+}
+
+// ─── Messages: Drafts & Mass PM ──────────────────────────────────────────────
+
+model PmDraft {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  toUserId  Int?
+  subject   String   @db.VarChar(255)
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("pm_drafts")
+}
+
+model MassMessage {
+  id        Int      @id @default(autoincrement())
+  senderId  Int
+  sender    User     @relation("MassMessageSender", fields: [senderId], references: [id])
+  subject   String   @db.VarChar(255)
+  body      String   @db.Text
+  sentCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("mass_messages")
+}
+
+// ─── Site History ─────────────────────────────────────────────────────────────
+
+model SiteHistory {
+  id        Int      @id @default(autoincrement())
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  title     String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_history")
+}
+
+// ─── Wiki ─────────────────────────────────────────────────────────────────────
+
+model WikiPage {
+  id           Int            @id @default(autoincrement())
+  title        String         @db.VarChar(100)
+  body         String         @db.Text
+  slug         String         @unique @db.VarChar(50)
+  revision     Int            @default(1)
+  minReadLevel Int            @default(0)
+  minEditLevel Int            @default(0)
+  authorId     Int
+  author       User           @relation("WikiPageAuthor", fields: [authorId], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  aliases      WikiAlias[]
+  revisions    WikiRevision[]
+
+  @@index([deletedAt])
+  @@map("wiki_pages")
+}
+
+model WikiRevision {
+  id        Int      @id @default(autoincrement())
+  pageId    Int
+  page      WikiPage @relation(fields: [pageId], references: [id])
+  revision  Int
+  title     String   @db.VarChar(100)
+  body      String   @db.Text
+  authorId  Int
+  author    User     @relation("WikiRevisionAuthor", fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([pageId, revision])
+  @@index([pageId])
+  @@map("wiki_revisions")
+}
+
+model WikiAlias {
+  alias     String   @id @db.VarChar(50)
+  pageId    Int
+  page      WikiPage @relation(fields: [pageId], references: [id])
+  userId    Int
+  user      User     @relation("WikiAliasCreator", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([pageId])
+  @@map("wiki_aliases")
+}
+
+// ─── Rules ────────────────────────────────────────────────────────────────────
+
+model RulesPage {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @db.VarChar(100)
+  title     String   @db.VarChar(200)
+  body      String   @db.Text
+  // Only one row may have isMain = true; enforced at API layer within a transaction.
+  // Add DB-level partial unique after migration:
+  //   CREATE UNIQUE INDEX rules_pages_one_main ON rules_pages (is_main) WHERE is_main = true;
+  isMain    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  authorId  Int
+  author    User     @relation("RulesPageAuthor", fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isMain])
+  @@index([sortOrder])
+  @@map("rules_pages")
+}
+
+/// The composable, CRS-weighted rule tree (PRD-05 #1 — the governance substrate
+/// in docs/prd/05-rules-and-governance.md). A `Rule` is a node (e.g. one of the 7
+/// GoldenRules); each carries its own compliance/violation CRS micro-impact so
+/// governance is data-driven, not hardcoded. The pure `ruleImpact()` scorer
+/// (src/modules/ruleImpact.ts) reads these weights — no logic lives in the row.
+/// Magnitudes are PRD-05 TBD; the model is the shape, the values are placeholders.
+model Rule {
+  id               Int       @id @default(autoincrement())
+  /// Machine-stable key, e.g. "golden.accounts" — distinct from the display title.
+  code             String    @unique @db.VarChar(100)
+  title            String    @db.VarChar(200)
+  description      String    @default("") @db.Text
+  /// CRS reward when the rule is adhered to (>= 0). Magnitude PRD-05 TBD.
+  complianceWeight Float     @default(0)
+  /// CRS penalty magnitude when the rule is breached (>= 0; ruleImpact negates it).
+  violationWeight  Float     @default(0)
+  sortOrder        Int       @default(0)
+  subRules         SubRule[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([sortOrder])
+  @@map("rules")
+}
+
+/// A child node of a `Rule` (PRD-05: "5 rules with 2 SubRules each"). Its weight
+/// composes additively on top of its parent rule's in `ruleImpact()`.
+model SubRule {
+  id               Int      @id @default(autoincrement())
+  ruleId           Int
+  rule             Rule     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  /// Stable key, unique within the parent rule (e.g. "no-sharing").
+  code             String   @db.VarChar(100)
+  title            String   @db.VarChar(200)
+  description      String   @default("") @db.Text
+  complianceWeight Float    @default(0)
+  violationWeight  Float    @default(0)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([ruleId, code])
+  @@index([ruleId])
+  @@map("sub_rules")
+}
+
+// ─── Top 10 ───────────────────────────────────────────────────────────────────
+
+model ReleaseVote {
+  id        Int      @id @default(autoincrement())
+  releaseId Int
+  release   Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  positive  Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([releaseId, userId])
+  @@index([releaseId])
+  @@index([userId])
+  @@map("release_votes")
+}
+
+model ReleaseVoteAggregate {
+  id        Int      @id @default(autoincrement())
+  releaseId Int      @unique
+  release   Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  ups       Int      @default(0)
+  total     Int      @default(0)
+  score     Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@index([score])
+  @@map("release_vote_aggregates")
+}
+
+enum Top10SnapshotType {
+  Daily
+  Weekly
+}
+
+enum StatSnapshotPeriod {
+  Daily
+  Monthly
+  Yearly
+}
+
+model Top10Snapshot {
+  id        Int                  @id @default(autoincrement())
+  type      Top10SnapshotType
+  createdAt DateTime             @default(now())
+  entries   Top10SnapshotEntry[]
+
+  @@index([type, createdAt])
+  @@map("top10_snapshots")
+}
+
+model Top10SnapshotEntry {
+  id           Int           @id @default(autoincrement())
+  snapshotId   Int
+  snapshot     Top10Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  rank         Int
+  releaseId    Int?
+  release      Release?      @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  releaseTitle String        @db.VarChar(255)
+  tagString    String        @db.VarChar(255)
+
+  @@index([snapshotId])
+  @@index([releaseId])
+  @@map("top10_snapshot_entries")
+}
+
+model UserStatSnapshot {
+  id                Int                @id @default(autoincrement())
+  userId            Int
+  period            StatSnapshotPeriod
+  bucketAt          DateTime
+  capturedAt        DateTime           @default(now())
+  contributed       BigInt             @default(0)
+  consumed          BigInt             @default(0)
+  contributionCount Int                @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, bucketAt])
+  @@index([userId, period, capturedAt])
+  @@map("user_stat_snapshots")
+}
+
+model SiteStatSnapshot {
+  id                       Int      @id @default(autoincrement())
+  bucketAt                 DateTime @unique
+  capturedAt               DateTime @default(now())
+  maxUsers                 Int      @default(0)
+  totalUsers               Int      @default(0)
+  enabledUsers             Int      @default(0)
+  activeToday              Int      @default(0)
+  activeThisWeek           Int      @default(0)
+  activeThisMonth          Int      @default(0)
+  communities              Int      @default(0)
+  releases                 Int      @default(0)
+  artists                  Int      @default(0)
+  blogPosts                Int      @default(0)
+  announcements            Int      @default(0)
+  comments                 Int      @default(0)
+  contributedLinks         Int      @default(0)
+  contributedLinkDownloads Int      @default(0)
+
+  @@index([capturedAt])
+  @@map("site_stat_snapshots")
+}
+
+model CommunityHealthSnapshot {
+  id          Int                @id @default(autoincrement())
+  communityId Int
+  period      StatSnapshotPeriod
+  bucketAt    DateTime
+  capturedAt  DateTime           @default(now())
+  pass        Int                @default(0)
+  warn        Int                @default(0)
+  fail        Int                @default(0)
+  unknown     Int                @default(0)
+  total       Int                @default(0)
+  checked     Int                @default(0)
+  // Share of links definitively probed, and share of probed that PASS — both
+  // nullable, mirroring the read-time pulse shape (null when empty/unprobed).
+  coverage    Float?
+  pulse       Float?
+  // The band as computed at capture time (Healthy/Ailing/Critical/Unknown).
+  // Stored, not recomputed, so history is stable against threshold changes.
+  status      String
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, period, bucketAt])
+  @@index([communityId, period, capturedAt])
+  @@map("community_health_snapshots")
+}
+
+// A captured CRS read for one user at a point in time — the additive trend
+// layer deferred by ADR-0007 (#94). The score itself is always computed on read
+// (`reputation.ts`); this is a read-model for trends only and never feeds back
+// into the scorer, so a snapshot bug can never corrupt a real score. Mirrors
+// CommunityHealthSnapshot's bucket/period/retention shape.
+model CrsSnapshot {
+  id         Int                @id @default(autoincrement())
+  userId     Int
+  period     StatSnapshotPeriod
+  bucketAt   DateTime
+  capturedAt DateTime           @default(now())
+  // The overall CRS at capture time.
+  score      Float
+  // The per-dimension breakdown ([{ name, subScore, weighted }]) as captured.
+  // JSON keeps this flexible while the dimension registry is still growing
+  // (#94); a follow-up migrates to typed columns once the shape settles.
+  dimensions Json
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, bucketAt])
+  @@index([userId, period, capturedAt])
+  @@map("crs_snapshots")
+}
+
+// ─── Dev Tools ────────────────────────────────────────────────────────────────
+
+/// Tracks a single test-data generation run for cleanup and auditing.
+/// Only created in non-production environments.
+model DevSeedRun {
+  id                 String   @id @default(cuid())
+  label              String?
+  mode               String // 'isolated' | 'integrated'
+  config             Json // GenerateConfig snapshot
+  summary            Json // Record<entityType, count>
+  warnings           Json? // string[]
+  cleanupStatus      String   @default("active")
+  // active | cleaning | cleaned | partial | failed
+  reversibilityLevel String   @default("full")
+  // full | partial — set to partial if any non-reversible mutation was tracked
+  actorId            Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  records   DevSeedRecord[]
+  mutations DevSeedMutation[]
+
+  @@map("dev_seed_runs")
+}
+
+/// One row created by a DevSeedRun — pk is Json to support Int, String, and composite keys.
+model DevSeedRecord {
+  id         String     @id @default(cuid())
+  runId      String
+  run        DevSeedRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  entityType String // e.g. "User", "WikiAlias", "UserSecondaryRank"
+  primaryKey Json // { id: 7 } or { alias: "foo" } or { userId: 2, userRankId: 5 }
+  createdAt  DateTime   @default(now())
+
+  @@index([runId])
+  @@index([entityType])
+  @@map("dev_seed_records")
+}
+
+/// Mutation to a pre-existing shared row — tracked so cleanup can revert it.
+/// Used in integrated mode when existing forums, tags, etc. are mutated.
+model DevSeedMutation {
+  id         String     @id @default(cuid())
+  runId      String
+  run        DevSeedRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  entityType String
+  primaryKey Json // { id: 7 } or { alias: "foo" } or composite
+  mutation   String // e.g. "counter_increment", "field_update", "relation_connect"
+  before     Json?
+  after      Json?
+  reversible Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+
+  @@index([runId])
+  @@index([entityType])
+  @@map("dev_seed_mutations")
+}
