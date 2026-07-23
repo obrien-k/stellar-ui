@@ -1,0 +1,247 @@
+name: Publish packages to GHCR
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: stellar
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: stellar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      STELLAR_PSQL_URI: postgresql://stellar:changeme@localhost:5432/stellar
+      STELLAR_PSQL_URI_TEST: postgresql://stellar:changeme@localhost:5432/stellar_test
+      STELLAR_AUTH_JWT_SECRET: ci-only-not-a-secret-pad-to-32-chars
+      STELLAR_HTTP_PORT: 8080
+      STELLAR_HTTP_CORS_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Format check
+        run: npx prettier --check src 'prisma/**/*.ts'
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Type check (test files)
+        run: npm run typecheck:test
+      - name: Unit tests
+        run: npm test
+      - name: OpenAPI freshness
+        run: npm run openapi:export && git diff --exit-code openapi.json
+      - name: ERD freshness
+        run: npm run db:erd && git diff --exit-code docs/erd.md
+      - name: Version consistency
+        run: npm run version:check
+      - name: Version consistency (tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: git fetch --tags --force && npm run version:check -- --check-tag
+
+  # Split from `test` (#306): the integration suite is DB-bound (~4.5 min) and
+  # was the long pole of the required check. Running it in parallel cuts the
+  # merge-gate critical path to the cheap gates. NOTE: branch protection must
+  # require BOTH `test` and `integration` for the gate to keep covering it.
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: stellar
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: stellar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      STELLAR_PSQL_URI: postgresql://stellar:changeme@localhost:5432/stellar
+      STELLAR_PSQL_URI_TEST: postgresql://stellar:changeme@localhost:5432/stellar_test
+      STELLAR_AUTH_JWT_SECRET: ci-only-not-a-secret-pad-to-32-chars
+      STELLAR_HTTP_PORT: 8080
+      STELLAR_HTTP_CORS_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Integration tests
+        run: npm run test:integration
+
+  # Build the real image and prove it self-migrates a fresh DB and boots — the
+  # class of break where a merged-but-unapplied migration leaves the runtime
+  # schema behind (see docker-entrypoint.sh). Gates publish.
+  smoke:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Build image
+        run: docker build -t stellar-api:smoke .
+      - name: Boot-and-migrate against a fresh database
+        run: |
+          set -euo pipefail
+          docker network create stellar-smoke
+          docker run -d --name pg --network stellar-smoke \
+            -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=stellar \
+            postgres:16-alpine
+          echo "Waiting for Postgres..."
+          for _ in $(seq 1 30); do
+            docker exec pg pg_isready -U postgres -q && break
+            sleep 1
+          done
+          docker run -d --name api --network stellar-smoke -p 8080:8080 \
+            -e STELLAR_PSQL_URI=postgresql://postgres:postgres@pg:5432/stellar \
+            -e STELLAR_AUTH_JWT_SECRET=smoke_ci_jwt_secret_at_least_32_chars_long \
+            stellar-api:smoke
+          echo "Waiting for /health..."
+          healthy=0
+          for _ in $(seq 1 30); do
+            if wget -qO- http://localhost:8080/health >/dev/null 2>&1; then healthy=1; break; fi
+            sleep 2
+          done
+          if [ "$healthy" != "1" ]; then
+            echo "::error::API never became healthy"; docker logs api; exit 1
+          fi
+          # Definitive check: the entrypoint actually applied migrations.
+          applied=$(docker exec pg psql -U postgres -d stellar -tAc \
+            "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL")
+          echo "Applied migrations: $applied"
+          if [ "$applied" -lt 1 ]; then
+            echo "::error::No migrations applied — container did not self-migrate"
+            docker logs api; exit 1
+          fi
+          # Definitive check: the entrypoint also seeded the baseline, so a fresh
+          # deploy is ready for /install rather than an empty DB (api#313).
+          ranks=$(docker exec pg psql -U postgres -d stellar -tAc \
+            "SELECT count(*) FROM user_ranks")
+          echo "Seeded ranks: $ranks"
+          if [ "$ranks" -lt 1 ]; then
+            echo "::error::No ranks seeded — container did not self-seed on boot"
+            docker logs api; exit 1
+          fi
+      - name: Teardown
+        if: always()
+        run: |
+          docker rm -f api pg >/dev/null 2>&1 || true
+          docker network rm stellar-smoke >/dev/null 2>&1 || true
+
+  publish:
+    needs: [test, integration, smoke]
+    # Skipped on PRs, where every step below was a no-op: the build was discarded
+    # unpushed and the GHCR login bought nothing. This does NOT leave the image
+    # unvalidated pre-merge — `smoke` builds the same Dockerfile on PRs and boots
+    # it against a fresh DB, which is the gap stellar-ui#186 reports on that repo.
+    # Keep `smoke` running on pull_request or this becomes that bug.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+      - name: Build and push image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          provenance: false
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Tagging alone does not produce a GitHub Release, and creating one by hand was
+  # a habit rather than a step — it lapsed after v0.5.6, which then sat advertised
+  # as "Latest" on the repo page through nine subsequent versions. Automated here
+  # so the tag is the only manual act.
+  #
+  # `needs: [publish]` deliberately: a Release announces an artifact, so it must
+  # not exist for a version whose image never reached GHCR.
+  release:
+    needs: [publish]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Create the Release from its CHANGELOG section
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          # Headings are `## [x.y.z] — date`, but older ones use a hyphen instead
+          # of an em dash, so match the bracketed version and nothing after it.
+          # Dots are escaped or `0.8.1` would also match `0x8y1`.
+          notes="$(awk -v ver="$version" '
+            BEGIN { gsub(/\./, "\\.", ver) }
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md)"
+          # Fail loudly rather than publishing an empty Release: a missing section
+          # means the CHANGELOG was not updated for this tag, which is worth
+          # knowing at release time.
+          if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+            echo "::error::No CHANGELOG.md section found for $version"
+            exit 1
+          fi
+          printf '%s\n' "$notes" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/notes.md"
