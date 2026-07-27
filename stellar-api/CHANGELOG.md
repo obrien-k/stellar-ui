@@ -8,6 +8,22 @@ All notable changes to stellar-api are documented here.
 
 ### Added
 
+- **Bulk-remove consumed release bookmarks** ([#296](https://github.com/orphic-inc/stellar-api/issues/296)) — the bookmark list is a consumption queue, but it was read-only once a member started grabbing from it: clearing the releases you had already consumed meant unbookmarking them one at a time. `DELETE /api/bookmarks/releases/consumed` now removes the caller's release bookmarks for any release they hold a live (`COMPLETED`) `DownloadAccessGrant` on, returning `{ removed: n }`. A release fans out to many contributions (editions/rips), so a single grab clears the bookmark; a reversed grant (claw-back flips the status to `REVERSED`) does not count, while a Freepass/Neutralpass grant does, since the member still downloaded it. Self-scoped and idempotent — `removed: 0` is a success, not a 404. The paired stellar-ui "Remove consumed" button is tracked downstream.
+
+### Changed
+
+- **`User.ratio` is computed at read time, not stored** ([#294](https://github.com/orphic-inc/stellar-api/issues/294)) — the column was a denormalization of `computeRatio(contributed, consumed)`, a pure function of two adjacent columns, and it appeared in no `WHERE` and no `ORDER BY` (the top-10 user ranking orders by contribution/consume _speed_, never ratio), so the stored copy bought no query performance and only created drift surface. Every read site now derives it — `auth.ts`, `profile.ts`, `search.ts`, and both the ORM and raw-SQL branches of `top10.ts` — and every response payload still carries `ratio`, so the API contract is unchanged. Two dead columns go with it: `ratioWatchDownload`, superseded by `RatioPolicyState` (which carries `consumedAtWatchStart` and derives the watch-period delta), and `totalEarned`, which nothing read. `canDownload` stays — it is an independent download-capability flag read as a hard gate on the grant path, documented in the schema as such rather than a projection of ratio.
+
+### Fixed
+
+- **Balance claw-backs floor at zero instead of going negative** ([#294](https://github.com/orphic-inc/stellar-api/issues/294)) — the download-reversal and request-unfill/refund paths decremented `contributed`/`consumed` unclamped while computing the derived ratio from a floored value, so a balance set out-of-band below the reversed amount (as the e2e seed does, and any future staff balance-adjustment would) could be driven negative. A single tested `floorSub` helper now floors every reversal site at zero.
+
+## [0.8.2] — 2026-07-22
+
+### Added
+
+- **Server-side BBCode transcription — the API is now the single source of BBCode rendering** ([#398](https://github.com/orphic-inc/stellar-api/issues/398), [#402](https://github.com/orphic-inc/stellar-api/issues/402), [#403](https://github.com/orphic-inc/stellar-api/issues/403)) — every prose surface stored raw BBCode and left each client to parse it, so the UI shipped a second, drifting transcriber. A content-addressed BBCode subsystem (`lib/bbcode/`) now renders raw BBCode to sanitized HTML at read time, cached by content hash, behind one seam (`modules/bbcodeRender.ts`): **Phase 1** re-authored the built-in wiki seeds in the BBCode dialect and wired the wiki read path to emit an additive `bodyHtml`; **Phase 2** extended that render-at-read to forum posts, comments, collages, releases, contributions and staff bios (each gains `bodyHtml`/`descriptionHtml`/`staffBioHtml` beside its unchanged raw field), and moved profile info to store raw BBCode with a rendered `profileInfoHtml`; **Phase 3** added the `[tex]` tag as server-side KaTeX, emitting MathML + HTML spans (and a little inline SVG) and widening the authoritative DOMPurify allowlist to pass that surface. The rendered field is additive — the raw field still round-trips the editor — and the API's allowlist is the authority the UI mirrors (stellar-ui [#207]). The legacy client parser is retired downstream.
+
 - **Stylesheet asset upload — Phase 2 of the asset store** ([ADR-0026](docs/adr/0026-static-asset-storage.md), #342) — the substrate from #290 gets the piece it was built for: an author can now upload the background images their stylesheet references. `POST /api/asset` takes a raw image body (identified by magic bytes, not the client's declared type), gated by a new per-rank `UserRank.assetLimit` count that scales up the ladder like `personalCollageLimit` — a brand-new User uploads nothing (`0`), the allowance grows with rank, and staff are uncapped (`null`). Fonts stay seeder-only: the upload path is image-only, which is what stops a member wiring an uploaded face into `@font-face` and reviving the #343 redistribution question as user-generated content. Delivery is derived from ownership rather than a status column — a site-shipped fixture (`ownerId` null) serves unauthenticated and cacheable `public`, a member upload requires auth and caches `private` — so the two can never drift and there is no illegal "public-but-owned" state to represent. A daily sweep collects member assets that no stylesheet references and that are past a 24h grace window; site assets are never swept.
 
   Scope was deliberately narrowed during a design review: avatars, which had ridden along as a partial #361 fix, moved to their own issue (#396) so this stays a single-lens infra change. The design settled one new column (`assetLimit`) where an earlier draft had five schema changes.
@@ -639,7 +655,8 @@ _Commits: `1e48a45` `06e4a61` `db95fc6` `3320608` `8f056e9` `c3d2568` (+ `52e9a0
 
 ---
 
-[Unreleased]: https://github.com/orphic-inc/stellar-api/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/orphic-inc/stellar-api/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/orphic-inc/stellar-api/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/orphic-inc/stellar-api/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/orphic-inc/stellar-api/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/orphic-inc/stellar-api/compare/v0.6.9...v0.7.0
