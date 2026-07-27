@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "ESNext" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
+
+    /* Modules */
+    "module": "NodeNext" /* Specify what module code is generated. */,
+    "moduleResolution": "NodeNext",
+    /* Emit */
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true /* Create source map files for emitted JavaScript files. */,
+    // "outFile": "./build/tsc.js" /* Specify a file that bundles all outputs into one JavaScript file. If 'declaration' is true, also designates a file that bundles all .d.ts output. */,
+    "removeComments": true /* Disable emitting comments. */,
+
+    /* Interop Constraints */
+    "esModuleInterop": true /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */,
+    "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
+
+    /* Type Checking */
+    "strict": true /* Enable all strict type-checking options. */,
+    "skipLibCheck": true /* Skip type checking all .d.ts files. */,
+
+    /* Performance (#306) — persist the program graph so a warm `tsc --noEmit`
+       re-checks only the changed subgraph instead of a full cold pass. The test
+       tsconfig overrides tsBuildInfoFile: each project needs its own cache. */
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsbuildinfo.src"
+  },
+  "ts-node": {
+    "files": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["**/*.spec.ts", "**/*.integration.ts", "src/test", "dist"]
+}
